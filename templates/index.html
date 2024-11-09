@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loja Online</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css">
     <style>
         * {
             margin: 0;
@@ -22,6 +24,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 1rem;
         }
 
         .logo {
@@ -56,44 +59,238 @@
 
         .produto h3 {
             margin: 1rem 0;
-            color: #2c3e50;
         }
 
         .preco {
-            font-size: 1.25rem;
-            color: #27ae60;
+            color: #e74c3c;
             font-weight: bold;
-            margin: 0.5rem 0;
+            margin-bottom: 1rem;
         }
 
         .btn-comprar {
-            background-color: #3498db;
+            background-color: #27ae60;
             color: white;
             padding: 0.5rem 1rem;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.3s;
         }
 
         .btn-comprar:hover {
-            background-color: #2980b9;
+            background-color: #218c53;
+        }
+
+        .search-container {
+            flex-grow: 1;
+            max-width: 500px;
+            margin: 0 20px;
+            position: relative; /* Adicionado para posicionar o ícone corretamente */
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 8px 35px 8px 15px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            color: #666;
+        }
+
+        .cart-link {
+            position: relative;
+            color: white;
+            text-decoration: none;
+            margin-left: 1rem;
+            padding-right: 15px;
+        }
+
+        .cart-count {
+            position: absolute;
+            top: -8px;
+            right: 0;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 12px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .swiper {
+            width: 100%;
+            height: 400px;
+            margin-bottom: 2rem;
+        }
+
+        .swiper-slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
     </style>
+ 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
+    <script>
+        function buscarProdutos(event) {
+            const pesquisa = event.target.value;
+            const produtosContainer = document.querySelector('.produtos');
+            
+            fetch(`/buscar_produtos?pesquisa=${encodeURIComponent(pesquisa)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error(data.error);
+                        return;
+                    }
+                    produtosContainer.innerHTML = data.produtos.map(produto => `
+                        <div class="produto">
+                            <img src="https://via.placeholder.com/200" alt="${produto.nome}">
+                            <h3>${produto.nome}</h3>
+                            <p>${produto.descricao}</p>
+                            <p class="preco">R$ ${produto.preco_venda.toFixed(2)}</p>
+                            <button class="btn-comprar" onclick="adicionarAoCarrinho(${produto.codigo})">
+                                Comprar
+                            </button>
+                        </div>
+                    `).join('');
+                })
+                .catch(error => console.error('Erro:', error));
+        }
+
+        // Adiciona um pequeno delay para não sobrecarregar o servidor
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Espera o DOM carregar completamente
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inicializa o contador do carrinho
+            const cartCount = {{ session['carrinho'].values()|sum if session.get('carrinho') else 0 }};
+            document.querySelector('.cart-count').textContent = cartCount;
+
+            // Configuração da busca
+            const searchInput = document.querySelector('.search-bar');
+            const debouncedSearch = debounce(buscarProdutos, 300);
+            searchInput.addEventListener('input', debouncedSearch);
+        });
+
+        // Inicialização do Swiper
+        const swiper = new Swiper('.swiper', {
+            loop: true,
+            pagination: {
+                el: '.swiper-pagination',
+            },
+            navigation: {
+                nextEl: '.swiper-button-next',
+                prevEl: '.swiper-button-prev',
+            },
+            autoplay: {
+                delay: 3000,
+            },
+        });
+
+        // Função para adicionar ao carrinho
+        function adicionarAoCarrinho(produtoId) {
+            fetch('/adicionar_ao_carrinho', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ produto_id: produtoId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.querySelector('.cart-count').textContent = data.cart_count;
+                    alert('Produto adicionado ao carrinho!');
+                } else {
+                    alert(data.error || 'Erro ao adicionar produto ao carrinho');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao adicionar produto ao carrinho');
+            });
+        }
+    </script>
 </head>
 <body>
     <header>
         <nav>
             <div class="logo">Perfumaria</div>
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    class="search-bar"
+                    name="pesquisa" 
+                    placeholder="Pesquisar produtos..."
+                    value="{{ request.args.get('pesquisa', '') }}"
+                >
+                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </div>
             <div>
-                <a href="#" style="color: white; text-decoration: none; margin-left: 1rem;">Carrinho</a>
-                <a href="#" style="color: white; text-decoration: none; margin-left: 1rem;">Login</a>
+                <a href="{{ url_for('carrinho') }}" class="cart-link">
+                    Carrinho
+                    <span class="cart-count">{{ session['carrinho'].values()|sum if session.get('carrinho') else 0 }}</span>
+                </a>
+                {% if 'usuario_id' in session %}
+                    <div class="dropdown" style="display: inline-block;">
+                        <a href="#" class="dropdown-toggle" style="color: white; text-decoration: none; margin-left: 1rem;" data-bs-toggle="dropdown">
+                            {{ session['usuario_nome'] }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}">Sair</a></li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <a href="{{ url_for('login') }}" style="color: white; text-decoration: none; margin-left: 1rem;">Login</a>
+                {% endif %}
             </div>
         </nav>
     </header>
 
     <main class="container">
         <h2>Produtos em Destaque</h2>
+
+        <div class="swiper">
+            <div class="swiper-wrapper">
+                <div class="swiper-slide">
+                    <img src="https://via.placeholder.com/1200x400/3498db/ffffff?text=Oferta+1" alt="Oferta 1">
+                </div>
+                <div class="swiper-slide">
+                    <img src="https://via.placeholder.com/1200x400/e74c3c/ffffff?text=Oferta+2" alt="Oferta 2">
+                </div>
+                <div class="swiper-slide">
+                    <img src="https://via.placeholder.com/1200x400/27ae60/ffffff?text=Oferta+3" alt="Oferta 3">
+                </div>
+            </div>
+            <div class="swiper-pagination"></div>
+            <div class="swiper-button-next"></div>
+            <div class="swiper-button-prev"></div>
+        </div>
         
         <div class="produtos">
             {% for produto in produtos %}
@@ -102,7 +299,7 @@
                 <h3>{{ produto.nome }}</h3>
                 <p>{{ produto.descricao }}</p>
                 <p class="preco">R$ {{ "%.2f"|format(produto.preco_venda) }}</p>
-                <button class="btn-comprar">Comprar</button>
+                <button class="btn-comprar" onclick="adicionarAoCarrinho({{ produto.codigo }})">Comprar</button>
             </div>
             {% endfor %}
         </div>
