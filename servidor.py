@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from typing import Optional, List
 import secrets
 
 # Importando bibliotecas necessárias para o funcionamento do Flask e do banco de dados
